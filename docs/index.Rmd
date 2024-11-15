@@ -17,6 +17,7 @@ I, however, as a great friend to my poor, hay-feverish friends, have decided to 
 ### Objective
 
 My research will run through the following journey:
+
 1. What are the **most common antihistaminic** prescriptions (Table)? (Which one should I buy next time they visit?)
 2. How do they **change throughout the year** (Plot)? (When should I be on the lookout for signs?)
 3. Do antihistaminic prescriptions sold **change around tree-populated areas**? Is it different if I only check known sensitizing trees (Interactive Shiny Geo Plot)? (Should I avoid some areas in the tours I give?)
@@ -50,6 +51,7 @@ The selected antihistaminics are shown below, and were obtained from the NHS Hay
 In the future of this report, I will also be working on January - December 2023 Prescription datasets for seasonal trends.
 
 Links to datasets:
+
 - "PostalSector.shp": *"https://datashare.ed.ac.uk/handle/10283/2597"*
 - "GP_Practices_-_Scotland.csv": *"https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd"*
 - "Trees.csv": *"https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about"*
@@ -120,19 +122,19 @@ all_trees_map <- ggplot(Postcode_Map_Edi) +
   # Add OpenStreetMap as a background
   annotation_map_tile(type = "osm", zoom = 12, alpha = 0.5) +  # Adjust zoom level to fit the plot
 
-  # Plot the districts (multipolygon)
+  # Plot the districts
   geom_sf(data = Postcode_Map_Edi, fill = alpha("lightgray", 0.2), color = "deeppink", size = 0.5) +
-  
-  # Plot the tree locations as points
+  # Plot the trees (with a tree icon!)
   geom_sf(data = trees_sf, colour = "forestgreen", size = 0.5, shape = "\U0001F332") +
   
   # Plot the GPs
-  geom_sf(data = GP_Edi_sf, aes(color = antihist_sold), size = 3, shape = 17) + #"\U0001F3E0") +
+  geom_sf(data = GP_Edi_sf, aes(color = antihist_sold), size = 2, shape = 17) + #"\U0001F3E0") +
   scale_color_viridis_c(option = "inferno", direction = -1) +
   
+  # Set the coordinates shown
   coord_sf(ylim = c(679577, 657320), xlim = c(306065, 337408)) +
   
-  # Customize plot appearance
+  # Adding theme and labels
   theme_minimal() +
   labs(title = "Edinburgh: Antihistaminic Prescription in GPs and Tree Location", subtitle = "Prescriptions Data (gradient triangles): March 2024; Tree Data (green tree icons): June 2024", caption = "Edinburgh Map from OpenStreetMap (OSM)", colour = "Antihistaminics Sold") +
   theme(legend.position = "right")
