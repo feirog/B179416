@@ -1,29 +1,146 @@
 ---
-title: "Assessment"
+title: "Formative Assessment"
 output: html_document
-date: "2024-11-01"
+date: "2024-11-15"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
 ```
 
-## R Markdown
+## Formative Submission
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Perhaps surprisingly, I belong to a special minority. Unlike the thousands of people around me, I (*knocks on wood*) do not have hay fever. Not even a tiny seasonal allergy! I have never known the pains of constant sneezing, allergy-driven insomnia, and never-ending stuffiness. Almost 10 million people in the UK would probably hate me if they knew.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+I, however, as a great friend to my poor, hay-feverish friends, have decided to **study the prescription trends and potential environmental relationships** so that I can also be extremely annoying spouting fun facts and claiming I know more about the trends while they suffer in pain. It's difficult to complain when your throat is dry!
 
-```{r cars}
-summary(cars)
+### Objective
+
+My research will run through the following journey:
+1. What are the **most common antihistaminic** prescriptions (Table)? (Which one should I buy next time they visit?)
+2. How do they **change throughout the year** (Plot)? (When should I be on the lookout for signs?)
+3. Do antihistaminic prescriptions sold **change around tree-populated areas**? Is it different if I only check known sensitizing trees (Interactive Shiny Geo Plot)? (Should I avoid some areas in the tours I give?)
+
+This will surely equip me with the knowledge needed to be the best guide whenever I get a visit, allowing me to adjust drug stock, and adapt touring locations depending on the month!
+
+## Report
+
+Loading libraries.
+```{r}
+library(tidyverse)
+library(janitor) 
+library(gt) 
+library(here)
+library(forcats)
+library(ggspatial)
+library(osmdata)
+library(raster)
+library(sf)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+### Datasets
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+In this formative assessment, I have focused on the third objective, as I believed that to be the most challenging area for my report. 
+
+Because of this, the datasets I have worked on are: Prescriptions March 2024, Postcodes of GPs, Coordinates of UPRN, and Trees in Edinburgh June 2024.
+
+The selected antihistaminics are shown below, and were obtained from the NHS Hay Fever treatment recommendations (*https://www.nhs.uk/conditions/antihistamines/*).
+
+In the future of this report, I will also be working on January - December 2023 Prescription datasets for seasonal trends.
+
+Links to datasets:
+- "PostalSector.shp": *"https://datashare.ed.ac.uk/handle/10283/2597"*
+- "GP_Practices_-_Scotland.csv": *"https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd"*
+- "Trees.csv": *"https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about"*
+- "NSUL_FEB_2023_SC.csv": *"https://geoportal.statistics.gov.uk/datasets/a46903edd1c7435b8fcdca80b0b190db/about"* (Subfolder: NSUL_FEB_2023_GB/Data)
+
+
+```{r}
+data_march2024 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/a42762ac-47cb-4fb6-b9b1-2478a588c0ed/download/pitc202403.csv") %>% 
+  clean_names()
+Postcode_Map <- st_read("C:/Users/Data/Downloads/GB_Postcodes/PostalSector.shp")
+Postcode = read.csv("C:/Users/Data/Downloads/GP_Practices_-_Scotland.csv")
+Trees = read.csv("C:/Users/Data/Downloads/Trees.csv")
+nsul = read.csv("C:/Users/Data/Downloads/NSUL_FEB_2023_SC.csv")
+
+antihist = c("chlorphenamine", "cinnarizine", "diphenhydramine", "hydroxyzine", "promethazine", "acrivastine", "cetirizine", "fexofenadine", "loratadine")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Tidying the data
+
+In the following code, I obtain the final prescriptions dataframe, where for each Edinburgh GP, I have an associated number of antihistaminics sold, and its geographical location.
+
+```{r}
+# Working on the prescriptions
+antihistamines_data = as.data.frame(c())
+for (drug in antihist){
+  # print(drug)
+  drug_df = data_march2024 %>% 
+    filter(str_detect(tolower(bnf_item_description), drug)) %>% 
+    group_by(gp_practice) %>% 
+    summarise(drug = drug, paid_quantity = sum(paid_quantity)) 
+  antihistamines_data = rbind(antihistamines_data, drug_df)
+}
+all_hist_sold = antihistamines_data %>% 
+  group_by(gp_practice) %>% 
+  summarise(antihist_sold = sum(paid_quantity))
+
+# Get the Edinburgh Districts
+Postcode_Map_Edi = Postcode_Map %>%
+  filter(Sprawl == "Edinburgh")
+
+# Get the GP Information 
+NSUL_Edi = nsul %>% # Find the coordinates of each UPRN
+  filter(str_detect(PCDS,"EH")) %>% 
+  rename(Easting = "GRIDGB1E",
+         Northing = "GRIDGB1N",
+         uprn = UPRN)  %>% 
+  dplyr::select(Easting, Northing, uprn) 
+GP_Edi = Postcode %>% 
+  filter(str_detect(postcode,"EH")) %>% # Filter the GPs in Edinburgh
+  left_join(., NSUL_Edi, by = "uprn") %>% # Add their coordinates using UPRN
+  filter(!is.na(Easting)) %>% # Remove GPs with unknown coordinates
+  left_join(.,all_hist_sold, by = c("prac_code" = "gp_practice")) # Add antihistaminics sold
+GP_Edi_sf = GP_Edi %>% # Transform into shapefile points based on Edi's districts, and remove if any is empty
+  st_as_sf(., coords = c("Easting", "Northing"), crs = st_crs(Postcode_Map_Edi)) %>% 
+  filter(!st_is_empty(geometry))
+
+# Get the the tree coordinates
+trees_sf <- st_as_sf(Trees, coords = c("X", "Y"), crs = st_crs(Postcode_Map_Edi))
+```
+
+
+## Generate the plot!
+
+For now this is a static map, but I intend to make a Shiny Interactive plot that will allow the user to change between viewing 'all trees' or filtering for 'sensitizer trees', or their choice of tree.
+
+```{r}
+all_trees_map <- ggplot(Postcode_Map_Edi) +
+  # Add OpenStreetMap as a background
+  annotation_map_tile(type = "osm", zoom = 12, alpha = 0.5) +  # Adjust zoom level to fit the plot
+
+  # Plot the districts (multipolygon)
+  geom_sf(data = Postcode_Map_Edi, fill = alpha("lightgray", 0.2), color = "deeppink", size = 0.5) +
+  
+  # Plot the tree locations as points
+  geom_sf(data = trees_sf, colour = "forestgreen", size = 0.5, shape = "\U0001F332") +
+  
+  # Plot the GPs
+  geom_sf(data = GP_Edi_sf, aes(color = antihist_sold), size = 3, shape = 17) + #"\U0001F3E0") +
+  scale_color_viridis_c(option = "inferno", direction = -1) +
+  
+  coord_sf(ylim = c(679577, 657320), xlim = c(306065, 337408)) +
+  
+  # Customize plot appearance
+  theme_minimal() +
+  labs(title = "Edinburgh: Antihistaminic Prescription in GPs and Tree Location", subtitle = "Prescriptions Data (gradient triangles): March 2024; Tree Data (green tree icons): June 2024", caption = "Edinburgh Map from OpenStreetMap (OSM)", colour = "Antihistaminics Sold") +
+  theme(legend.position = "right")
+
+print(all_trees_map)
+```
+
+
+### Future Report Work
+
+As mentioned above, I intend to modify the interactiveness of the geographical plot. The work show belongs to the last section of my report. Earlier sections will have a table showing how much each antihistaminic was sold in Scotland, and a line plot showing changes in antihistaminics sold by month (grouped by antihistaminic name, one coloured line each in the same graph).
