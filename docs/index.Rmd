@@ -1,11 +1,33 @@
 ---
-title: "Formative Assessment"
-output: html_document
+title: "Test Assessment"
+author: "[B179416](https://github.com/feirog/B179416)"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    highlight: espresso
+    number_sections: true 
+    theme: united
 date: "2024-11-15"
+editor_options: 
+  chunk_output_type: console
 ---
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+<style type="text/css">
+  body{
+  font-family: Inter;
+  font-size: 10pt;
+  background-color: #f6f0e1;
+}
+h1,h2,h3,h4,h5,h6{
+  font-family: 'Montserrat',sans-serif;
+  font-weight: 600;
+}
+</style>
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE, fig.align='center')
 ```
 
 ## Formative Submission
@@ -26,115 +48,163 @@ This will surely equip me with the knowledge needed to be the best guide wheneve
 
 ## Report
 
-Loading libraries.
-```{r}
-library(tidyverse)
-library(janitor) 
-library(gt) 
-library(here)
-library(forcats)
-library(ggspatial)
-library(osmdata)
-library(raster)
-library(sf)
+```{r Load libraries}
+for (package in c("tidyverse","janitor","gt","gtExtras","forcats","ggspatial","osmdata","raster","sf","data.table","scales","flair")) {eval(bquote(library(.(package))))}
 ```
 
 
 ### Datasets
 
-In this formative assessment, I have focused on the third objective, as I believed that to be the most challenging area for my report. 
+In this formative assessment, I have focused on the third objective, as I believed that to be the most challenging area for my report. Because of this, the datasets I have worked on are: Prescriptions March 2024, Postcodes of GPs, Coordinates of UPRN, and Trees in Edinburgh June 2024.
 
-Because of this, the datasets I have worked on are: Prescriptions March 2024, Postcodes of GPs, Coordinates of UPRN, and Trees in Edinburgh June 2024.
+- ["PostalSector.shp"](https://datashare.ed.ac.uk/handle/10283/2597)
+- ["GP_Practices_-_Scotland.csv"](https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd)
+- ["Trees.csv"](https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about)
+- ["NSUL_FEB_2023_SC.csv"](https://geoportal.statistics.gov.uk/datasets/a46903edd1c7435b8fcdca80b0b190db/about) (Subfolder: NSUL_FEB_2023_GB/Data)
 
-The selected antihistaminics are shown below, and were obtained from the NHS Hay Fever treatment recommendations (*https://www.nhs.uk/conditions/antihistamines/*).
+The selected antihistaminics are shown below, and were obtained from the [**NHS Hay Fever treatment**](https://www.nhs.uk/conditions/antihistamines/) recommendations.
 
 In the future of this report, I will also be working on January - December 2023 Prescription datasets for seasonal trends.
 
-Links to datasets:
 
-- "PostalSector.shp": *"https://datashare.ed.ac.uk/handle/10283/2597"*
-- "GP_Practices_-_Scotland.csv": *"https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd"*
-- "Trees.csv": *"https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about"*
-- "NSUL_FEB_2023_SC.csv": *"https://geoportal.statistics.gov.uk/datasets/a46903edd1c7435b8fcdca80b0b190db/about"* (Subfolder: NSUL_FEB_2023_GB/Data)
-
-
-```{r}
-data_march2024 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/a42762ac-47cb-4fb6-b9b1-2478a588c0ed/download/pitc202403.csv") %>% 
-  clean_names()
-Postcode_Map <- st_read("C:/Users/Data/Downloads/GB_Postcodes/PostalSector.shp")
+```{r Getting our data}
+prescriptions_202406 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/a42762ac-47cb-4fb6-b9b1-2478a588c0ed/download/pitc202403.csv") %>% clean_names()
+Postcode_Map <- st_read("C:/Users/Data/Downloads/GB_Postcodes/PostalSector.shp", quiet = TRUE)
 Postcode = read.csv("C:/Users/Data/Downloads/GP_Practices_-_Scotland.csv")
 Trees = read.csv("C:/Users/Data/Downloads/Trees.csv")
 nsul = read.csv("C:/Users/Data/Downloads/NSUL_FEB_2023_SC.csv")
 
 antihist = c("chlorphenamine", "cinnarizine", "diphenhydramine", "hydroxyzine", "promethazine", "acrivastine", "cetirizine", "fexofenadine", "loratadine")
+
+# To access the prescription data, I will be constructing the link dynamically. Each link was seen to have two variable components: the date and the resource number. I have collected them below, ordered in pairs matching index position.
+dates = c("202307","202308","202309","202310","202311","202312","202401","202402","202403","202404","202405","202406")
+resources = c("7bb45ee6-6f1c-45f4-933b-958bdbe0ca4f","72ca4ad2-0228-4672-9eb0-cc911e4a8ca7","2d3d240f-1467-4a91-9f0e-769745650cb9","94134438-db1d-4b8d-8f70-5e9b0e47bd03","21d11fed-a494-4e30-9bb6-46143c3b9530","00cdf8d7-f784-4e87-894c-34f2540ea6ab","d3eaaf84-0f3b-4fb8-9460-e33503095fbe","86fda652-0e1d-48bb-9368-aa2a560d925b","a42762ac-47cb-4fb6-b9b1-2478a588c0ed","409a02f2-b77c-47a0-917d-4a5a1c90f182","5fbbd126-6166-4249-9620-7ed78e877297","95f7f250-bd04-4e4a-b853-5df75b00a632")
+for (date in dates){assign(paste0("prescriptions_", date),read_csv(paste0("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/",resources[match(date,dates)],"/download/pitc",date,".csv")) %>%  clean_names())} #Assign + paste0 can create objects with varying names inside a loop!
+prescriptions_all = rbindlist(lapply(ls(pattern="^prescriptions"), function(x) get(x)))# Create a master df of prescriptions
+remove(list = ls(pattern="^prescriptions_2")) # And I remove the individual prescription df to clear space!
 ```
 
 ## Tidying the data
 
 In the following code, I obtain the final prescriptions dataframe, where for each Edinburgh GP, I have an associated number of antihistaminics sold, and its geographical location.
 
-```{r}
+```{r Generate antihistaminic dataset}
 # Working on the prescriptions
 antihistamines_data = as.data.frame(c())
 for (drug in antihist){
-  # print(drug)
-  drug_df = data_march2024 %>% 
-    filter(str_detect(tolower(bnf_item_description), drug)) %>% 
-    group_by(gp_practice) %>% 
+  drug_df = prescriptions_all %>% 
+    dplyr::filter(str_detect(tolower(bnf_item_description), drug)) %>% 
+    group_by(gp_practice, date = paid_date_month) %>% 
     summarise(drug = drug, paid_quantity = sum(paid_quantity)) 
-  antihistamines_data = rbind(antihistamines_data, drug_df)
-}
-all_hist_sold = antihistamines_data %>% 
+  antihistamines_data = rbind(antihistamines_data, drug_df)}
+antihist_sold_by_gp = antihistamines_data %>% 
   group_by(gp_practice) %>% 
   summarise(antihist_sold = sum(paid_quantity))
+antihist_sold_by_drug = antihistamines_data %>% 
+  group_by(drug = str_to_title(drug)) %>% 
+  summarize(total = sum(as.integer(paid_quantity)), 
+            proportion = sum(paid_quantity) * 100/ sum(antihistamines_data$paid_quantity)) %>% 
+  arrange(desc(total))
+```
 
+
+## Table!
+
+Note: "https://www.boots.com/sitesearch?searchTerm="
+
+```{r Generate antihistaminics table}
+# Get a table with how many sales each antihistaminic had
+antih_table <- antihist_sold_by_drug %>% 
+  gt() %>% 
+  tab_header(title = md("**Antihistaminic Sales in Scotland**"), 
+             subtitle = "Data from NHS Scotland[...]") %>% 
+  cols_label(drug = md("**Antihistaminic**"), total = md("**Total Sales**"), proportion = md("**Proportion of<br />Antihistaminic Sales**")) %>% 
+  data_color(columns = total, method = "numeric", palette = "viridis", reverse = TRUE,
+    domain = c(0, max(antihist_sold_by_drug$total))) %>% 
+  opt_horizontal_padding(scale = 3) %>% 
+  gt_plt_bar_pct(column = proportion, scaled = TRUE, labels = TRUE, decimals = 2) %>% 
+  fmt_number(columns = total, sep_mark = ",") %>% 
+  fmt_percent(columns = proportion, decimals = 2) %>% 
+  cols_align(align = "center", columns = total:proportion) %>% 
+  cols_width(everything() ~ px(200)) %>% 
+  tab_options(column_labels.border.bottom.width = px(2),
+    column_labels.border.bottom.color = "black",
+    table.border.top.color = "white")
+
+antih_table
+```
+
+## Generate the timeline plot
+
+Note to self: check out plotly! It may be good to generate an interactive plot where people can check the different points / filter on a single drug.
+
+```{r Generate montly trend plots}
+antihist_sold_by_month_and_drug = antihistamines_data %>% 
+  mutate(date = as.Date(paste0("01",date),format="%d%Y%m")) %>% 
+  group_by(drug = str_to_title(drug), date) %>% 
+  summarize(total = sum(as.integer(paid_quantity))) %>% 
+  mutate(drug = factor(drug, levels = antihist_sold_by_drug$drug, ordered = T))
+antihist_sold_by_month_and_drug_3 = antihist_sold_by_month_and_drug %>% 
+  group_by(drug) %>% 
+  arrange(desc(total)) %>% 
+  top_n(3,wt = total)
+#-------------------------------------------------------------------------------
+month_trend_plot = antihist_sold_by_month_and_drug %>% ggplot(aes(x = date, y = total, group = drug, colour = drug)) +
+  geom_line(linewidth = 1) +
+  geom_point(data = antihist_sold_by_month_and_drug_3, size = 2.5) +
+  facet_wrap(vars(drug)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.position = "none") +
+  scale_x_date(date_breaks = "1 month", labels = date_format("%b %Y")) +
+  scale_y_continuous(labels = comma) +
+  labs(title = "Monthly Antihistaminic Sales from JUL-2023 to JUN-2024",
+       x = "Month",                            
+       y = "Total Sales",
+       caption = md("POINTS: top 3 months with most sales\nDATA: Prescriptions in the Community, Public Health Scotland")) 
+month_trend_plot
+```
+
+
+## Generate the map plot!
+
+For now this is a static map, but I intend to make a Shiny Interactive plot that will allow the user to change between viewing 'all trees' or filtering for 'sensitizer trees', or their choice of tree.
+
+```{r Generate geographical map}
 # Get the Edinburgh Districts
 Postcode_Map_Edi = Postcode_Map %>%
-  filter(Sprawl == "Edinburgh")
+  dplyr::filter(Sprawl == "Edinburgh")
 
 # Get the GP Information 
 NSUL_Edi = nsul %>% # Find the coordinates of each UPRN
-  filter(str_detect(PCDS,"EH")) %>% 
+  dplyr::filter(str_detect(PCDS,"EH")) %>% 
   rename(Easting = "GRIDGB1E",
          Northing = "GRIDGB1N",
          uprn = UPRN)  %>% 
   dplyr::select(Easting, Northing, uprn) 
 GP_Edi = Postcode %>% 
-  filter(str_detect(postcode,"EH")) %>% # Filter the GPs in Edinburgh
+  dplyr::filter(str_detect(postcode,"EH")) %>% # Filter the GPs in Edinburgh
   left_join(., NSUL_Edi, by = "uprn") %>% # Add their coordinates using UPRN
-  filter(!is.na(Easting)) %>% # Remove GPs with unknown coordinates
-  left_join(.,all_hist_sold, by = c("prac_code" = "gp_practice")) # Add antihistaminics sold
-GP_Edi_sf = GP_Edi %>% # Transform into shapefile points based on Edi's districts, and remove if any is empty
-  st_as_sf(., coords = c("Easting", "Northing"), crs = st_crs(Postcode_Map_Edi)) %>% 
-  filter(!st_is_empty(geometry))
+  dplyr::filter(!is.na(Easting)) %>% # Remove GPs with unknown coordinates
+  left_join(.,antihist_sold_by_gp, by = c("prac_code" = "gp_practice")) # Add antihistaminics sold
+GP_Edi_sf = GP_Edi %>% # Transform into sf points based on Edi Districts and remove empty
+  st_as_sf(., coords = c("Easting", "Northing"), crs = st_crs(Postcode_Map_Edi)) %>%
+  dplyr::filter(!st_is_empty(geometry))
 
 # Get the the tree coordinates
 trees_sf <- st_as_sf(Trees, coords = c("X", "Y"), crs = st_crs(Postcode_Map_Edi))
-```
-
-
-## Generate the plot!
-
-For now this is a static map, but I intend to make a Shiny Interactive plot that will allow the user to change between viewing 'all trees' or filtering for 'sensitizer trees', or their choice of tree.
-
-```{r}
+#-------------------------------------------------------------------------------
+# Plot!!!
 all_trees_map <- ggplot(Postcode_Map_Edi) +
-  # Add OpenStreetMap as a background
-  annotation_map_tile(type = "osm", zoom = 12, alpha = 0.5) +  # Adjust zoom level to fit the plot
-
-  # Plot the districts
+  annotation_map_tile(type = "osm", zoom = 12, alpha = 0.5) + # Background map
+  # Plot the districts, trees, and GPs
   geom_sf(data = Postcode_Map_Edi, fill = alpha("lightgray", 0.2), color = "deeppink", size = 0.5) +
-  # Plot the trees (with a tree icon!)
   geom_sf(data = trees_sf, colour = "forestgreen", size = 0.5, shape = "\U0001F332") +
-  
-  # Plot the GPs
   geom_sf(data = GP_Edi_sf, aes(color = antihist_sold), size = 2, shape = 17) + #"\U0001F3E0") +
   scale_color_viridis_c(option = "inferno", direction = -1) +
   
-  # Set the coordinates shown
+  # Adding coordinates, theme and labels
   coord_sf(ylim = c(679577, 657320), xlim = c(306065, 337408)) +
-  
-  # Adding theme and labels
   theme_minimal() +
   labs(title = "Edinburgh: Antihistaminic Prescription in GPs and Tree Location", subtitle = "Prescriptions Data (gradient triangles): March 2024; Tree Data (green tree icons): June 2024", caption = "Edinburgh Map from OpenStreetMap (OSM)", colour = "Antihistaminics Sold") +
   theme(legend.position = "right")
@@ -146,3 +216,9 @@ print(all_trees_map)
 ### Future Report Work
 
 As mentioned above, I intend to modify the interactiveness of the geographical plot. The work show belongs to the last section of my report. Earlier sections will have a table showing how much each antihistaminic was sold in Scotland, and a line plot showing changes in antihistaminics sold by month (grouped by antihistaminic name, one coloured line each in the same graph).
+
+### Aesthetics
+```{r}
+decorate("Generate montly trend plots") %>% flair_rx("antihist")
+```
+
