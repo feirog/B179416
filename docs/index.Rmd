@@ -1,5 +1,5 @@
 ---
-title: "Test Assessment"
+title: "Exploration of Antihistamine Prescriptions and Co-Localization with Trees"
 author: "[B179416](https://github.com/feirog/B179416)"
 output: 
   html_document:
@@ -8,12 +8,15 @@ output:
     code_folding: show
     highlight: espresso
     number_sections: true 
-    theme: united
+    theme: cosmo
 date: "2024-11-15"
 editor_options: 
   chunk_output_type: console
+bibliography: references.bib
 ---
+
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+
 <style type="text/css">
   body{
   font-family: Inter;
@@ -24,57 +27,77 @@ h1,h2,h3,h4,h5,h6{
   font-family: 'Montserrat',sans-serif;
   font-weight: 600;
 }
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: scroll !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+code.r{
+  font-size: 12px
+}
+blockquote {
+    padding: 10px 20px;
+    margin: 0 0 20px;
+    font-size: 11px;
+    border-left: 5px solid #06118f;
+}
 </style>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning = FALSE, fig.align='center')
 ```
 
-## Formative Submission
+> ***Accessibility and Intractability of the Report:***
+>
+> This report contains several features which may aid with user experience, such as Alt-Text for each image.
+>
+> Please note you may wish to collapse all code chunks at the start for best storytelling. Similarly, when reviewing the code chunks, the palette **generally** follows the color-coding: [comments]{style="color: blue;"}, [functions]{style="color: orange;"}, and [values]{style="color: green;"}. Any text in blue outside of code chunks contains a [hyperlink]{style="color: blue;"} or can be interacted with (try to click on the author for a link to the GitHub Repo!).
 
-Perhaps surprisingly, I belong to a special minority. Unlike the thousands of people around me, I (*knocks on wood*) do not have hay fever. Not even a tiny seasonal allergy! I have never known the pains of constant sneezing, allergy-driven insomnia, and never-ending stuffiness. Almost 10 million people in the UK would probably hate me if they knew.
+## Rationale of the Report {.unnumbered}
 
-I, however, as a great friend to my poor, hay-feverish friends, have decided to **study the prescription trends and potential environmental relationships** so that I can also be extremely annoying spouting fun facts and claiming I know more about the trends while they suffer in pain. It's difficult to complain when your throat is dry!
+Perhaps surprisingly, I belong to a special group. Unlike the thousands of people around me, I (*knocks on wood*) do not have hay fever. Not even a tiny seasonal allergy! I have never known the pains of constant sneezing, allergy-driven insomnia, and never-ending stuffiness. Almost 10 million people in the UK would probably hate me if they knew.
 
-### Objective
+As a great friend to my poor, hay-feverish friends and fellow citizens, I have decided to **study antihistamine prescription trends and potential environmental relationships**.
 
-My research will run through the following journey:
+Hay fever is most commonly addressed with this group of drugs, constituting one of their most common uses. This malady is oftentimes seasonal, aligning with pollen-rich months (generally around spring). Generally, differently sensitized people will have varied reactions to the many pollen sources. However, recent research on tree allergenicity, has identified several popular urban trees to be highly allergenic to a wide proportion of their target population (Netherlands) [@deweger2024].
 
-1. What are the **most common antihistaminic** prescriptions (Table)? (Which one should I buy next time they visit?)
-2. How do they **change throughout the year** (Plot)? (When should I be on the lookout for signs?)
-3. Do antihistaminic prescriptions sold **change around tree-populated areas**? Is it different if I only check known sensitizing trees (Interactive Shiny Geo Plot)? (Should I avoid some areas in the tours I give?)
+### *Objective* {.unnumbered}
 
-This will surely equip me with the knowledge needed to be the best guide whenever I get a visit, allowing me to adjust drug stock, and adapt touring locations depending on the month!
+This report aims to answer the following questions, which are both of personal and public health interest:
 
-## Report
+1.  What are the **most common antihistamine** prescriptions? *(Which are the most important to stock?)*
+2.  How do they **change throughout the year**? *(When should we be on the lookout for signs and anticipate increased use of health services?)*
+3.  Do antihistamine prescriptions sold **change around tree-populated areas**? Is it different focusing on strongly allergenic trees? *(Should certain areas be avoided, and should future green city planning be conscious of this?)*
+
+Findings from this report could be of special interest for Edinburgh's City Plan 2030, which will be heavily involved with the city's Thriving Greenspaces Strategy.
+
+## Data and Environment Set-Up {.unnumbered}
 
 ```{r Load libraries}
-for (package in c("tidyverse","janitor","gt","gtExtras","forcats","ggspatial","osmdata","raster","sf","data.table","scales","flair")) {eval(bquote(library(.(package))))}
+for (package in c("tidyverse","janitor","gt","gtExtras","forcats","ggspatial","osmdata","raster","sf","data.table","scales", "leaflet", "htmltools")) {eval(bquote(library(.(package))))}
 ```
 
+### *Datasets* {.unnumbered}
 
-### Datasets
+The report relies on data collected by the **NHS 'Prescriptions in the Community',** focusing on JUL-2023 to JUN-2024 (dates selected for a yearly trend analysis, with up-to-day data comparison with the Tree dataset). This dataset collects details on the prescriptions sold attributed to each GP Code.
 
-In this formative assessment, I have focused on the third objective, as I believed that to be the most challenging area for my report. Because of this, the datasets I have worked on are: Prescriptions March 2024, Postcodes of GPs, Coordinates of UPRN, and Trees in Edinburgh June 2024.
+To bind these with a geographical location, the GP codes first need to be linked to their UPRN (Unique Property Reference Number) using the **GP_Practices** dataset, which can then be used to identify the Easting and Northing coordinates using the **NSUL Dataset** provided by the UK Government (FEB-2023). The **Tree dataset** contains the location and species of trees maintained by the Edinburgh City Council (JUN-2024). The **Postal Sector dataset** will be used for geographical mapping of city boundaries. The following must be downloaded and loaded onto the data folder for the report to work:
 
-- ["PostalSector.shp"](https://datashare.ed.ac.uk/handle/10283/2597)
-- ["GP_Practices_-_Scotland.csv"](https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd)
-- ["Trees.csv"](https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about)
-- ["NSUL_FEB_2023_SC.csv"](https://geoportal.statistics.gov.uk/datasets/a46903edd1c7435b8fcdca80b0b190db/about) (Subfolder: NSUL_FEB_2023_GB/Data)
+-   [**PostalSector.shp**](https://datashare.ed.ac.uk/handle/10283/2597)
+-   [**GP_Practices\_-\_Scotland.csv**](https://data.spatialhub.scot/dataset/gp_practices-is/resource/8389fd1d-563d-4c05-9833-26d9f07fd6cd)
+-   [**NSUL_FEB_2023_SC.csv**](https://geoportal.statistics.gov.uk/datasets/a46903edd1c7435b8fcdca80b0b190db/about) (Subfolder: *NSUL_FEB_2023_GB/Data*)
+-   [**Trees.csv**](https://data.edinburghcouncilmaps.info/datasets/cityofedinburgh::trees/about)
 
-The selected antihistaminics are shown below, and were obtained from the [**NHS Hay Fever treatment**](https://www.nhs.uk/conditions/antihistamines/) recommendations.
-
-In the future of this report, I will also be working on January - December 2023 Prescription datasets for seasonal trends.
-
+The selected antihistamines are shown below, and were obtained from the [**NHS Hay Fever treatment**](https://www.nhs.uk/conditions/antihistamines/) recommendations.
 
 ```{r Getting our data}
-prescriptions_202406 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/a42762ac-47cb-4fb6-b9b1-2478a588c0ed/download/pitc202403.csv") %>% clean_names()
-Postcode_Map <- st_read("C:/Users/Data/Downloads/GB_Postcodes/PostalSector.shp", quiet = TRUE)
-Postcode = read.csv("C:/Users/Data/Downloads/GP_Practices_-_Scotland.csv")
-Trees = read.csv("C:/Users/Data/Downloads/Trees.csv")
+postal_sector <- st_read("C:/Users/Data/Downloads/GB_Postcodes/PostalSector.shp", quiet = TRUE)
+gp_to_nsul = read.csv("C:/Users/Data/Downloads/GP_Practices_-_Scotland.csv")
+trees = read.csv("C:/Users/Data/Downloads/Trees.csv")
 nsul = read.csv("C:/Users/Data/Downloads/NSUL_FEB_2023_SC.csv")
 
-antihist = c("chlorphenamine", "cinnarizine", "diphenhydramine", "hydroxyzine", "promethazine", "acrivastine", "cetirizine", "fexofenadine", "loratadine")
+antihistamines = c("chlorphenamine", "cinnarizine", "diphenhydramine", "hydroxyzine", "promethazine", "acrivastine", "cetirizine", "fexofenadine", "loratadine")
 
 # To access the prescription data, I will be constructing the link dynamically. Each link was seen to have two variable components: the date and the resource number. I have collected them below, ordered in pairs matching index position.
 dates = c("202307","202308","202309","202310","202311","202312","202401","202402","202403","202404","202405","202406")
@@ -84,71 +107,128 @@ prescriptions_all = rbindlist(lapply(ls(pattern="^prescriptions"), function(x) g
 remove(list = ls(pattern="^prescriptions_2")) # And I remove the individual prescription df to clear space!
 ```
 
-## Tidying the data
+### *Antihistamine Data Tidying* {.unnumbered}
 
-In the following code, I obtain the final prescriptions dataframe, where for each Edinburgh GP, I have an associated number of antihistaminics sold, and its geographical location.
+In the following code, the prescriptions dataset is first filtered to produce `antihistamines_data`, which contains the total sales for each antihistamine (defined above) by GP per year.
 
-```{r Generate antihistaminic dataset}
-# Working on the prescriptions
+-   An aggregation for total sales by drug across the year produces: `antihist_sold_by_drug`.
+
+<!-- -->
+
+-   A different aggregation for total sales by drug and month: `antihist_sold_by_month_and_drug`.
+
+    -   A selection of the top 3 months in sales for each drug in the above object gives: `antihist_sold_by_month_and_drug_3`.
+
+-   And for total antihistamine sales by GP: `antihist_sold_by_gp`.
+
+```{r Generate antihistamine datasets}
 antihistamines_data = as.data.frame(c())
-for (drug in antihist){
+for (drug in antihistamines){
   drug_df = prescriptions_all %>% 
     dplyr::filter(str_detect(tolower(bnf_item_description), drug)) %>% 
     group_by(gp_practice, date = paid_date_month) %>% 
     summarise(drug = drug, paid_quantity = sum(paid_quantity)) 
   antihistamines_data = rbind(antihistamines_data, drug_df)}
-antihist_sold_by_gp = antihistamines_data %>% 
-  group_by(gp_practice) %>% 
-  summarise(antihist_sold = sum(paid_quantity))
+
 antihist_sold_by_drug = antihistamines_data %>% 
   group_by(drug = str_to_title(drug)) %>% 
-  summarize(total = sum(as.integer(paid_quantity)), 
-            proportion = sum(paid_quantity) * 100/ sum(antihistamines_data$paid_quantity)) %>% 
+  summarize(total = sum(paid_quantity), 
+            proportion = total * 100/ sum(antihistamines_data$paid_quantity)) %>% 
   arrange(desc(total))
-```
 
-
-## Table!
-
-Note: "https://www.boots.com/sitesearch?searchTerm="
-
-```{r Generate antihistaminics table}
-# Get a table with how many sales each antihistaminic had
-antih_table <- antihist_sold_by_drug %>% 
-  gt() %>% 
-  tab_header(title = md("**Antihistaminic Sales in Scotland**"), 
-             subtitle = "Data from NHS Scotland[...]") %>% 
-  cols_label(drug = md("**Antihistaminic**"), total = md("**Total Sales**"), proportion = md("**Proportion of<br />Antihistaminic Sales**")) %>% 
-  data_color(columns = total, method = "numeric", palette = "viridis", reverse = TRUE,
-    domain = c(0, max(antihist_sold_by_drug$total))) %>% 
-  opt_horizontal_padding(scale = 3) %>% 
-  gt_plt_bar_pct(column = proportion, scaled = TRUE, labels = TRUE, decimals = 2) %>% 
-  fmt_number(columns = total, sep_mark = ",") %>% 
-  fmt_percent(columns = proportion, decimals = 2) %>% 
-  cols_align(align = "center", columns = total:proportion) %>% 
-  cols_width(everything() ~ px(200)) %>% 
-  tab_options(column_labels.border.bottom.width = px(2),
-    column_labels.border.bottom.color = "black",
-    table.border.top.color = "white")
-
-antih_table
-```
-
-## Generate the timeline plot
-
-Note to self: check out plotly! It may be good to generate an interactive plot where people can check the different points / filter on a single drug.
-
-```{r Generate montly trend plots}
 antihist_sold_by_month_and_drug = antihistamines_data %>% 
   mutate(date = as.Date(paste0("01",date),format="%d%Y%m")) %>% 
   group_by(drug = str_to_title(drug), date) %>% 
   summarize(total = sum(as.integer(paid_quantity))) %>% 
   mutate(drug = factor(drug, levels = antihist_sold_by_drug$drug, ordered = T))
+
 antihist_sold_by_month_and_drug_3 = antihist_sold_by_month_and_drug %>% 
   group_by(drug) %>% 
   arrange(desc(total)) %>% 
   top_n(3,wt = total)
-#-------------------------------------------------------------------------------
+
+antihist_sold_by_gp = antihistamines_data %>% 
+  group_by(gp_practice) %>% 
+  summarise(antihist_sold = sum(paid_quantity))
+```
+
+### *Geographical Data Tidying*
+
+To later plot a map of Edinburgh with districts, GP locations and their antihistamine sales, and the position of trees (both all, and specifically allergenic), the geographical datasets introduced above are to be filtered and joined.
+
+-   First, a simple filter of the `postal_sector` data to limit the sprawl to only 'Edinburgh' gives: `postal_sector_edi`.
+
+-   Selecting the rows of `nsul` whose postcode starts with "EH", and keeping only the NSUL code and their corresponding coordinates produces `nsul_edi`.
+
+-   This is then joined with a similarly filtered `gp_to_nsul` object using the NSUL code, which creates a dataset with GP codes and their coordinates. The GP code is then used to join in the antihistamine sales each produced from `antihist_sold_by_gp`, keeping only GPs for which both the location and the sales are known. This is object `gp_edi_sf`.
+
+-   Finally, `all_trees_sf` is directly the original `trees` dataset, re-formatted for geographical plotting.
+
+    -   And `allergenic_trees_sf` takes the above, keeping only the trees belonging to genus classified as "very strong" or "strong" allergenic by @deweger2024 (namely: *Betula*, *Alnus* and *Corylus*).
+
+```{r Generate geographical dataset}
+postal_sector_edi = postal_sector %>% dplyr::filter(Sprawl == "Edinburgh") # Get the Edinburgh Districts
+
+nsul_edi = nsul %>% dplyr::filter(str_detect(PCDS,"^EH")) %>% # Get the GP Information
+  rename(Easting = "GRIDGB1E",
+         Northing = "GRIDGB1N",
+         uprn = "UPRN")  %>% ##u
+  dplyr::select(Easting, Northing, uprn)
+
+gp_edi_sf = gp_to_nsul %>% 
+  dplyr::filter(str_detect(postcode,"^EH")) %>% # Filter the GPs in Edinburgh
+  left_join(., nsul_edi, by = "uprn") %>% # Add their coordinates using UPRN
+  dplyr::filter(!is.na(Easting)) %>% # Remove GPs with unknown coordinates
+  inner_join(.,antihist_sold_by_gp, by = c("prac_code" = "gp_practice")) %>% # Add antihistamines sold, only keep GPs for which we also know the antihistamines.
+  st_as_sf(., coords = c("Easting", "Northing"), crs = st_crs(postal_sector_edi)) %>% # Transform into sf points based on Edi Districts and remove empty ##u
+  dplyr::filter(!st_is_empty(geometry))
+
+all_trees_sf <- st_as_sf(trees, coords = c("X", "Y"), crs = st_crs(postal_sector_edi)) 
+allergenic_trees_sf = all_trees_sf %>% filter(str_detect(tolower(trees$LatinName),"betula|alnus|corylus"))
+```
+
+## Most Common Antihistamine Sales
+
+The code below produces `antihistamine_sales_table`, a table ranking the selected antihistamines by total sales across Scotland for the JUL-2023 to JUN-2024 period.
+
+```{r Generate antihistamines table, alt.text = "The table shows the antihistamines ranked and colour-coded from most to least sales and the proportion of antihistamine sales they represent. Results: Cetrizine (33.73%), Fexofenadine (24.43%), Chlorophenamine (22.18%), Loratadine (9.36%), Promethazine (5.07%), Cinnarizine (2.63%), Hydroxyzine (2.32%), Acrivastine (0.27%), and lastly, Diphenhydramine (0.02%)."}
+# Get a table with how many sales each antihistamine had
+antihistamine_sales_table <- antihist_sold_by_drug %>% 
+  gt() %>%
+  tab_header(title = md("**Antihistamine Sales in Scotland**"), subtitle = "Data from NHS Scotland[...]") %>%
+  cols_label(drug = md("**Antihistamine**"), total = md("**Total Sales**"), proportion = md("**Proportion of<br />Antihistamine Sales**")) %>%
+  data_color(columns = total, method = "numeric", palette = "viridis", reverse = TRUE, domain = c(0, max(antihist_sold_by_drug$total))) %>%
+  fmt_number(columns = total, sep_mark = ",", decimals = 0) %>%
+  fmt_percent(columns = proportion, decimals = 2) %>%
+  tab_options(
+    column_labels.border.bottom.width = px(2), 
+    column_labels.border.bottom.color = "black", 
+    table.border.top.color = "white"
+  ) %>%
+  gt_plt_bar_pct(column = proportion, scaled = TRUE, labels = TRUE, decimals = 2) %>% 
+  cols_width(everything() ~ px(200)) %>%
+  cols_align(align = "center", columns = total:proportion) %>%
+  opt_horizontal_padding(scale = 3) 
+antihistamine_sales_table
+```
+
+### *Insights*
+The most commonly prescribed antihistamines are Cetrizine, Fexofenadine, Chlorphenamine, and Loratadine. In total, these account for **almost 90%** of all antihistamine prescription sales in a year. On the contrary, Promethazine, Cinnarizine, Hydroxyne, Acrivastine, and Diphenhydramine aggregated barely surpass **10%**.
+
+Although all the above are antihistamines, not all are primarily used for allergy and hay fever treatment. Interestingly, those in the lower band mostly belong to first-generation drowsy antihistamines and are generally associated with different primary uses. These include insomnia, itchiness, anxiety, vertigo, travel sickness, tinnitus, ear conditions. 
+
+Alternatively, the dosage may simply be less convenient. Acrivastine, unlike Cetirizine or Loratadine, does not have a standard dose of a single tablet per day.
+The above reasons are either generally consistent throughout the year, or more randomly sporadic than hay fever, so further temporal exploration may aid in supporting the explanation.
+
+### *Limitations*
+Related to this latter point, the data here has been aggregated blinded towards dosage of drugs. This likely means drugs with higher dosage frequency will be over-represented compared to one-tablet-a-day drugs. That is, the difference in preference towards Cetirizine, one of the single daily dose drugs, is likely even greater than calculated. [TBF: explain this better].
+Of note, most antihistamines are available Over-The-Counter, and do not require a GP prescription. Moreover, they can be fairly affordable, with 14 Certizine one-a-day tablets costing [less than £2](https://www.boots.com/bells-allergy-relief-10-mg-film-coated-tablets-14-tablets-10340448). The high accessibility, coupled by a seasonal onset of symptoms, will likely mean a significant proportion of the population may simply opt to purchase them on-the-go at pharmacies or supermarkets, rather than pursue a formal diagnosis / prescription with their GP. Therefore, the numbers observed here are most surely not an accurate quantification of population consumption, and should be used merely as a limited insight into antihistamine preferences within regulated healthcare.
+
+## Seasonal Trends in Antihistamine Sales
+
+The code below produces `month_trend_plot`, a plot showing the monthly sales of each antihistamine across Scotland for the JUL-2023 to JUN-2024 period. It also highlights the 3 months with most sales for each drug.
+
+```{r Generate montly trend plots, alt.text = "Line plot faceted by drug, with the months between JUL-2023 to JUN-2024 on the x-axis, and the total sales on the y axis. Top 3 months in sales for each group are highlighted with a bigger point size. In the most sold drugs, these points tend to fall between April to July."}
 month_trend_plot = antihist_sold_by_month_and_drug %>% ggplot(aes(x = date, y = total, group = drug, colour = drug)) +
   geom_line(linewidth = 1) +
   geom_point(data = antihist_sold_by_month_and_drug_3, size = 2.5) +
@@ -158,67 +238,67 @@ month_trend_plot = antihist_sold_by_month_and_drug %>% ggplot(aes(x = date, y = 
         legend.position = "none") +
   scale_x_date(date_breaks = "1 month", labels = date_format("%b %Y")) +
   scale_y_continuous(labels = comma) +
-  labs(title = "Monthly Antihistaminic Sales from JUL-2023 to JUN-2024",
+  labs(title = "Monthly Antihistamine Sales from JUL-2023 to JUN-2024",
        x = "Month",                            
        y = "Total Sales",
        caption = md("POINTS: top 3 months with most sales\nDATA: Prescriptions in the Community, Public Health Scotland")) 
 month_trend_plot
 ```
 
+### *Insights*
 
-## Generate the map plot!
+### *Limitations*
 
-For now this is a static map, but I intend to make a Shiny Interactive plot that will allow the user to change between viewing 'all trees' or filtering for 'sensitizer trees', or their choice of tree.
+## Geographical Co-Localization of Trees and Antihistamine Sales
 
-```{r Generate geographical map}
-# Get the Edinburgh Districts
-Postcode_Map_Edi = Postcode_Map %>%
-  dplyr::filter(Sprawl == "Edinburgh")
+The code below produces `trees_and_antih_map`, an interactive map showing the total antihistamine sales in Edinburgh GPs during the JUL-2023 to JUN-2024 period. It includes a layer showing all the trees managed by the city council in light green, and another highlighting trees beloning to a strongly sensitizing genus in darker green.
 
-# Get the GP Information 
-NSUL_Edi = nsul %>% # Find the coordinates of each UPRN
-  dplyr::filter(str_detect(PCDS,"EH")) %>% 
-  rename(Easting = "GRIDGB1E",
-         Northing = "GRIDGB1N",
-         uprn = UPRN)  %>% 
-  dplyr::select(Easting, Northing, uprn) 
-GP_Edi = Postcode %>% 
-  dplyr::filter(str_detect(postcode,"EH")) %>% # Filter the GPs in Edinburgh
-  left_join(., NSUL_Edi, by = "uprn") %>% # Add their coordinates using UPRN
-  dplyr::filter(!is.na(Easting)) %>% # Remove GPs with unknown coordinates
-  left_join(.,antihist_sold_by_gp, by = c("prac_code" = "gp_practice")) # Add antihistaminics sold
-GP_Edi_sf = GP_Edi %>% # Transform into sf points based on Edi Districts and remove empty
-  st_as_sf(., coords = c("Easting", "Northing"), crs = st_crs(Postcode_Map_Edi)) %>%
-  dplyr::filter(!st_is_empty(geometry))
-
-# Get the the tree coordinates
-trees_sf <- st_as_sf(Trees, coords = c("X", "Y"), crs = st_crs(Postcode_Map_Edi))
-#-------------------------------------------------------------------------------
-# Plot!!!
-all_trees_map <- ggplot(Postcode_Map_Edi) +
-  annotation_map_tile(type = "osm", zoom = 12, alpha = 0.5) + # Background map
-  # Plot the districts, trees, and GPs
-  geom_sf(data = Postcode_Map_Edi, fill = alpha("lightgray", 0.2), color = "deeppink", size = 0.5) +
-  geom_sf(data = trees_sf, colour = "forestgreen", size = 0.5, shape = "\U0001F332") +
-  geom_sf(data = GP_Edi_sf, aes(color = antihist_sold), size = 2, shape = 17) + #"\U0001F3E0") +
-  scale_color_viridis_c(option = "inferno", direction = -1) +
-  
-  # Adding coordinates, theme and labels
-  coord_sf(ylim = c(679577, 657320), xlim = c(306065, 337408)) +
-  theme_minimal() +
-  labs(title = "Edinburgh: Antihistaminic Prescription in GPs and Tree Location", subtitle = "Prescriptions Data (gradient triangles): March 2024; Tree Data (green tree icons): June 2024", caption = "Edinburgh Map from OpenStreetMap (OSM)", colour = "Antihistaminics Sold") +
-  theme(legend.position = "right")
-
-print(all_trees_map)
+```{r Generate geographical map, width = 8, height = 5, alt.text = "Interactive map focusing on Edinburgh. The districts are tinted with light gray and outlined in pink. All tree locations are shown with light green dots, and all allergenic tree locations with darker green dots. GP locations are shown with a color-coded circle ranging from dark purple to light yellow, depending on their total antihistamine sales."}
+trees_and_antih_map <- leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap) %>% # Add OpenStreetMap tiles as the base layer
+  # Add the district polygons, which will aid in boundary setting and point visualization
+  addPolygons(data = st_transform(postal_sector_edi, crs = 4326), # Note: st_transform aids in the conversion from Easting/Northing to coordinates leaflet can work with (CRS = 4326)
+    fillColor = "lightgray", fillOpacity = 0.6, color = "deeppink", weight = 0.5,popup = ~paste("District:", PostDist)) %>%
+  # Add light green points for all tree locations (with their species name!)
+  addCircleMarkers(data = st_transform(all_trees_sf, crs = 4326), 
+    color = "forestgreen", radius = 1, stroke = FALSE, fillOpacity = 0.5, popup = ~paste("Tree Species:", LatinName), group = "All Tree Locations") %>%
+  # Add darker green points for allergenic tree locations (again, with their species name!)
+  addCircleMarkers(data = st_transform(allergenic_trees_sf, crs = 4326), 
+    color = "darkgreen", radius = 1, stroke = FALSE, fillOpacity = 0.5, popup = ~paste("Tree Species:", LatinName), group = "Allergenic Tree Locations") %>%
+  # Add color-coded circles for each GP in Edinburgh reflecting antihistamines sold (with GP code and sales reported)
+  addCircleMarkers(data = st_transform(gp_edi_sf, crs = 4326), 
+    color = ~colorNumeric("inferno", gp_edi_sf$antihist_sold, reverse = TRUE)(antihist_sold), radius = 5, fillOpacity = 1, stroke = FALSE, popup = ~paste("GP Code:", prac_code, "<br>", "Antihistamines Sold:", antihist_sold), group = "GP Locations") %>%
+  # Add title, subtitle and note
+  addControl(tags$div(HTML("<h4>Edinburgh: Antihistamine Prescription in GPs and Tree Location</h4><p>Prescriptions Data (gradient circles): JUL-2023 to JUN-2024; Tree Data (green points): JUN-2024.</p>")), position = "topright") %>%
+  addControl(tags$div(HTML("<small>Edinburgh Map from OpenStreetMap (OSM)</small>")), position = "bottomleft") %>% 
+  # Add a legend for antihistamine sales colouring, an interactive layers pannel, and set default map view.
+  addLegend("bottomright", pal = colorNumeric("inferno", gp_edi_sf$antihist_sold, reverse = TRUE), values = gp_edi_sf$antihist_sold, title = "Antihistamines Sold", opacity = 1) %>% 
+  addLayersControl(overlayGroups = c("GP Locations", "All Tree Locations", "Allergenic Tree Locations"), options = layersControlOptions(collapsed = FALSE)) %>%
+  setView(lng = -3.208267, lat = 55.933251, zoom = 11) 
+trees_and_antih_map
 ```
 
+### *Insights*
 
-### Future Report Work
+### *Limitations* 
+There are limitations in both the tree dataset and in the filtering steps for Edinburgh GP selection. Defining boundaries can be [challenging](https://en.wikipedia.org/wiki/Coastline_paradox), especially so when combining different administrative entities. ['EH' postcodes]{style="color: orange;"} were used to select **'Edinburgh' GPs**. While this is the [Edinburgh postcode area](https://en.wikipedia.org/wiki/EH_postcode_area), it also covers other cities. On the other hand, the **Edinburgh Postal Map dataset** used to draw the local boundaries only includes [postcodes of the City of Edinburgh]{style="color: orange;"}. Furthermore, the **tree dataset** instead opts to divide by [Edinburgh Wards / Neighbourhood Partnerships]{style="color: orange;"} (and other neighbouring cities, such as South Queensferry). This includes the "Pentland Hill" and "Almond" areas, which encompass coordinates outside-borders in the 'stricter' Postal Areas dataset, yet falls short compared to the wider 'EH'-filtered dataset (GPs).
 
-As mentioned above, I intend to modify the interactiveness of the geographical plot. The work show belongs to the last section of my report. Earlier sections will have a table showing how much each antihistaminic was sold in Scotland, and a line plot showing changes in antihistaminics sold by month (grouped by antihistaminic name, one coloured line each in the same graph).
+[TBF] This could be especially true for areas 
 
-### Aesthetics
-```{r}
-decorate("Generate montly trend plots") %>% flair_rx("antihist")
-```
+## Conclusion
 
+### *Future Report Work*
+
+As mentioned above, I intend to modify the interactiveness of the geographical plot. The work show belongs to the last section of my report. Earlier sections will have a table showing how much each antihistamine was sold in Scotland, and a line plot showing changes in antihistamines sold by month (grouped by antihistamine name, one coloured line each in the same graph).
+
+> ***Disclosure of GenAI Use:***
+>
+> <div>
+>
+> ChatGPT was used to assist with generation of the background raster layer of the Geographical Plot, for which common packages and their free API allowances had changed recently.
+>
+> It was also used to aid in the customization of the report's aesthetics, namely to quickly check if an idea was feasible - which upon confirmation, I found more success forgoing the approaches it suggested and taking the informed search to Stack Overflow.
+>
+> </div>
+
+<div id="refs"></div>
