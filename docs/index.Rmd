@@ -100,7 +100,7 @@ trees = read.csv("C:/Users/Data/Downloads/Trees.csv")
 nsul = read.csv("C:/Users/Data/Downloads/NSUL_FEB_2023_SC.csv")
 antihistamines = c("chlorphenamine", "cinnarizine", "diphenhydramine", "hydroxyzine", "promethazine", "acrivastine", "cetirizine", "fexofenadine", "loratadine") # More can be added if desired.
 ```
-<!-- The following chunk can take a long time to load and may fail due to connection issues. Please do get comfortable! -->
+<!-- The following chunk can take a long time to load and may fail due to connection issues. Please do get comfortable! Optionally, add a print statement in the loop to track which link is being accessed at a time. Also NOTE: The classes in some of the prescriptions data aren't the same across different datasets. You may see a warning on the last 3 when it rbinds them. Do not worry, we won't use the column affected anyway!-->
 ```{r Getting prescription data}
 # To access the prescription data, I will be constructing the link dynamically. Each link was seen to have two variable components: the date and the resource number. I have collected them below, ordered in pairs matching index position.
 dates = c("202307","202308","202309","202310","202311","202312","202401","202402","202403","202404","202405","202406") # NOTE: A failed connection likely means your network is not stable, please ensure this first before troubleshooting!
@@ -140,8 +140,8 @@ antihist_sold_by_drug = antihistamines_data %>%
 antihist_sold_by_month_and_drug = antihistamines_data %>% 
   mutate(date = as.Date(paste0("01",date),format="%d%Y%m")) %>% # Add day 01 to our year + month dates for ease of handling, since most Date functions need a day, month, and year.
   group_by(drug = str_to_title(drug), date) %>% 
-  summarize(total = sum(paid_quantity)) %>% # Ensuring paid_quantity
-  mutate(drug = factor(drug, levels = antihist_sold_by_drug$drug, ordered = T)) # Order the drugs as factors based on the ranked order specified in the table dataset (above)
+  summarize(total = sum(paid_quantity)) %>% 
+  mutate(drug = factor(drug, levels = antihist_sold_by_drug$drug, ordered = T)) # Order the drugs as factors based on the ranked order specified in the table dataset ("antihist_sold_by_drug", above)
 
 antihist_sold_by_month_and_drug_3 = antihist_sold_by_month_and_drug %>% 
   group_by(drug) %>% 
@@ -207,7 +207,7 @@ antihistamine_sales_table = antihist_sold_by_drug %>%
   gt_plt_bar_pct(column = proportion, scaled = TRUE, labels = TRUE, background = "#A1A1A1",decimals = 2) %>% # This is a great function, which inserts a mini plot bar in each column entry. It is key to define the decimal number inside this function if one wants to control it (fmt_number only changes the colour when using this function, regardless of line position, and does not affect the decimal number here)
   cols_width(everything() ~ px(200)) %>% # Change size of columns and alignment
   cols_align(align = "center", columns = total:proportion) 
-antihistamine_sales_table # Note: the warnings will not prevent a correct table from being plotted.
+antihistamine_sales_table # NOTE: the warnings will not prevent a correct table from being plotted.
 ```
 
 ##### *Insights* {.unnumbered}
@@ -255,7 +255,7 @@ The code below produces `trees_and_antih_map`, an interactive map showing the to
 trees_and_antih_map = leaflet() %>%
   addProviderTiles(providers$OpenStreetMap) %>% # Add OpenStreetMap tiles as the base layer
   # Add the district polygons, which will aid in boundary setting and point visualization
-  addPolygons(data = st_transform(postal_sector_edi, crs = 4326), # Note: st_transform aids in the conversion from Easting/Northing to a coordinates system leaflet can work with (CRS = 4326)
+  addPolygons(data = st_transform(postal_sector_edi, crs = 4326), # NOTE: st_transform aids in the conversion from Easting/Northing to a coordinates system leaflet can work with (CRS = 4326)
     fillColor = "lightgray", fillOpacity = 0.6, color = "deeppink", weight = 0.5,popup = ~paste("District:", PostDist)) %>% # When a district is clicked on, return the district code (popup)
   # Add light green points for all tree locations, and add a popup when a point is selected showing the latin name. Define the layer name in "group".
   addCircleMarkers(data = st_transform(all_trees_sf, crs = 4326), 
